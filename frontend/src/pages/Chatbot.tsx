@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { MessageCircle, Send, Bot, User, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Message {
   id: number;
@@ -111,6 +112,7 @@ const Chatbot = () => {
                   {msg.from === "bot" ? (
                     <div className="text-sm">
                       <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
                         components={{
                           p: ({ children }) => <p className="mb-3 leading-relaxed text-foreground">{children}</p>,
                           ul: ({ children }) => <ul className="mb-3 ml-0 space-y-2">{children}</ul>,
@@ -119,9 +121,29 @@ const Chatbot = () => {
                           strong: ({ children }) => <strong className="font-bold text-foreground">{children}</strong>,
                           em: ({ children }) => <em className="font-medium text-primary">{children}</em>,
                           code: ({ children }) => <code className="rounded bg-accent px-1.5 py-0.5 text-xs font-mono text-foreground">{children}</code>,
-                          h3: ({ children }) => <h3 className="mb-2 mt-4 font-semibold text-foreground">{children}</h3>,
-                          h4: ({ children }) => <h4 className="mb-2 mt-3 font-medium text-foreground">{children}</h4>,
+                          h3: ({ children }) => <h3 className="mb-3 mt-4 flex items-center gap-2 text-base font-bold text-foreground">{children}</h3>,
+                          h4: ({ children }) => <h4 className="mb-2 mt-3 font-semibold text-foreground">{children}</h4>,
                           blockquote: ({ children }) => <blockquote className="border-l-4 border-primary pl-4 italic text-muted-foreground">{children}</blockquote>,
+                          table: ({ children }) => (
+                            <div className="my-4 overflow-x-auto rounded-lg border">
+                              <table className="w-full border-collapse text-sm">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          thead: ({ children }) => <thead className="bg-primary/10">{children}</thead>,
+                          tbody: ({ children }) => <tbody className="divide-y">{children}</tbody>,
+                          tr: ({ children }) => <tr className="hover:bg-accent/50 transition-colors">{children}</tr>,
+                          th: ({ children }) => (
+                            <th className="border-b border-border px-4 py-2.5 text-left font-semibold text-foreground">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="border-b border-border px-4 py-2.5 text-foreground">
+                              {children}
+                            </td>
+                          ),
                         }}
                       >
                         {msg.text}
