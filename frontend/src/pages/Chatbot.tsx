@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageCircle, Send, Maximize2, Minimize2, Bot, User } from "lucide-react";
+import { MessageCircle, Send, Maximize2, Minimize2, Bot, User, Loader2 } from "lucide-react";
 
 interface Message {
   id: number;
@@ -7,43 +7,64 @@ interface Message {
   text: string;
 }
 
-const sampleReplies: Record<string, string> = {
-  "is paracetamol available": "Yes, Paracetamol is available. We have 200 units (Batch B001, Expiry 2026-12-01) and 50 units (Batch B002, Expiry 2026-04-15).",
-  "which medicines are near expiry": "The following medicines are near expiry:\n• Cetirizine — Expiry: 2026-03-05 (3 units)\n• Paracetamol — Expiry: 2026-04-15 (50 units)\n• Omeprazole — Expiry: 2026-05-01 (15 units)",
-  "check stock of amoxicillin": "Amoxicillin: 8 units remaining (Batch B003, Expiry 2026-08-20). ⚠️ Low stock — consider reordering.",
-  "low stock medicines": "Medicines with low stock (≤20 units):\n• Amoxicillin — 8 units\n• Cetirizine — 3 units\n• Omeprazole — 15 units",
-};
-
-function getReply(input: string): string {
-  const lower = input.toLowerCase().trim();
-  for (const [key, val] of Object.entries(sampleReplies)) {
-    if (lower.includes(key) || key.includes(lower)) return val;
-  }
-  return "I can help you check medicine availability, stock levels, and expiry dates. Try asking:\n• \"Is Paracetamol available?\"\n• \"Which medicines are near expiry?\"\n• \"Low stock medicines\"";
-}
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const quickQueries = [
   "Is Paracetamol available?",
   "Which medicines are near expiry?",
   "Check stock of Amoxicillin",
-  "Low stock medicines",
+  "Show me low stock medicines",
 ];
 
 const Chatbot = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 0, from: "bot", text: "Hello! I'm the MagizhHealDesk stock enquiry assistant. Ask me about medicine availability, stock levels, or expiry dates." },
+    { id: 0, from: "bot", text: "Hello! I'm the MagizhHealDesk AI stock enquiry assistant. Ask me about medicine availability, stock levels, or expiry dates. I have real-time access to your inventory!" },
   ]);
   const [input, setInput] = useState("");
   const [fullscreen, setFullscreen] = useState(false);
   const [nextId, setNextId] = useState(1);
+  const [loading, setLoading] = useState(false);
 
-  const send = (text: string) => {
-    if (!text.trim()) return;
+  const send = async (text: string) => {
+    if (!text.trim() || loading) return;
+    
     const userMsg: Message = { id: nextId, from: "user", text };
-    const botMsg: Message = { id: nextId + 1, from: "bot", text: getReply(text) };
-    setMessages((prev) => [...prev, userMsg, botMsg]);
-    setNextId((n) => n + 2);
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/chatbot/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get response from chatbot");
+      }
+
+      const data = await response.json();
+      const botMsg: Message = { 
+        id: nextId + 1, 
+        from: "bot", 
+        text: data.message || "Sorry, I couldn't process that query." 
+      };
+      
+      setMessages((prev) => [...prev, botMsg]);
+      setNextId((n) => n + 2);
+    } catch (error) {
+      console.error("Chatbot error:", error);
+      const errorMsg: Message = { 
+        id: nextId + 1, 
+        from: "bot", 
+        text: "⚠️ Sorry, I'm having trouble connecting to the stock database. Please try again in a moment." 
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+      setNextId((n) => n + 2);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -59,7 +80,7 @@ const Chatbot = () => {
           </div>
           <div className="rounded-lg border bg-accent/50 p-4">
             <p className="text-sm text-muted-foreground">
-              This internal chatbot helps pharmacy staff quickly check medicine availability, stock quantity, and expiry details without navigating inventory tables.
+              This AI-powered chatbot helps pharmacy staff quickly check medicine availability, stock quantity, and expiry details without navigating inventory tables. Powered by Groq AI with real-time stock data.
               <span className="mt-1 block font-medium text-foreground">Internal Use Only — Pharmacy Staff Assistant</span>
             </p>
           </div>
@@ -104,6 +125,17 @@ const Chatbot = () => {
               )}
             </div>
           ))}
+          {loading && (
+            <div className="flex gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary">
+                <Bot className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <div className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm text-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Checking stock data...</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Quick Queries */}
@@ -112,7 +144,8 @@ const Chatbot = () => {
             <button
               key={q}
               onClick={() => send(q)}
-              className="shrink-0 rounded-full border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              disabled={loading}
+              className="shrink-0 rounded-full border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {q}
             </button>
@@ -127,13 +160,15 @@ const Chatbot = () => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send(input)}
               placeholder="Ask about medicine availability..."
-              className="flex-1 rounded-lg border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              disabled={loading}
+              className="flex-1 rounded-lg border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <button
               onClick={() => send(input)}
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-primary-foreground hover:shadow-card-hover"
+              disabled={loading || !input.trim()}
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-primary-foreground hover:shadow-card-hover disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Send className="h-4 w-4" />
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>
           </div>
         </div>

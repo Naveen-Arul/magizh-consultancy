@@ -17,8 +17,8 @@ const features = [
   },
   {
     icon: MessageCircle,
-    title: "Stock Enquiry Chatbot",
-    desc: "Internal chatbot for staff to quickly check medicine availability, quantity, and expiry without navigating tables.",
+    title: "AI Stock Enquiry Chatbot",
+    desc: "AI-powered assistant (Groq) with real-time inventory data. Instantly answers medicine availability, stock levels, and expiry queries.",
     path: "/chatbot",
   },
 ];
@@ -46,7 +46,7 @@ const Index = () => {
             MagizhHealDesk
           </h1>
           <p className="mt-4 max-w-xl text-lg text-primary-foreground/85">
-            Internal Pharmacy Billing, Inventory Management, and Stock Enquiry Assistant
+            Internal Pharmacy Billing, Inventory Management, and AI-Powered Stock Enquiry Assistant
           </p>
           <div className="mt-8 flex gap-3">
             <Link

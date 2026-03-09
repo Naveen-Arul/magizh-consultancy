@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import stockRoutes from './routes/stock.routes.js';
 import billingRoutes from './routes/billing.routes.js';
+import chatbotRoutes from './routes/chatbot.routes.js';
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ mongoose.connect(process.env.MONGO_ATLAS, {
 app.use('/api/stock', stockRoutes);
 app.use('/api/medicines', stockRoutes); // Alias for billing page
 app.use('/api/billing', billingRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
