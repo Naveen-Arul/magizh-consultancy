@@ -33,7 +33,6 @@ const billItemSchema = new mongoose.Schema({
 const billingSchema = new mongoose.Schema({
   billNumber: {
     type: String,
-    required: true,
     unique: true
   },
   patientName: {

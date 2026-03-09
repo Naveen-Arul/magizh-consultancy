@@ -11,6 +11,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Verify environment variables
+if (!process.env.GROQ_API_KEY) {
+  console.warn('⚠️ GROQ_API_KEY not found - chatbot will not work');
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());

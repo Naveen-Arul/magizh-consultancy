@@ -40,11 +40,12 @@ const Chatbot = () => {
         body: JSON.stringify({ message: text }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to get response from chatbot");
+        throw new Error(data.message || data.error || "Failed to get response");
       }
 
-      const data = await response.json();
       const botMsg: Message = { 
         id: nextId + 1, 
         from: "bot", 
@@ -53,12 +54,12 @@ const Chatbot = () => {
       
       setMessages((prev) => [...prev, botMsg]);
       setNextId((n) => n + 2);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chatbot error:", error);
       const errorMsg: Message = { 
         id: nextId + 1, 
         from: "bot", 
-        text: "⚠️ Sorry, I'm having trouble connecting to the stock database. Please try again in a moment." 
+        text: `⚠️ Error: ${error.message || 'Unable to connect to AI service. Please check if the backend server is running and Groq API key is configured.'}` 
       };
       setMessages((prev) => [...prev, errorMsg]);
       setNextId((n) => n + 2);

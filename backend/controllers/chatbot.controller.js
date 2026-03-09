@@ -58,6 +58,15 @@ export const queryChatbot = async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
+    // Check if Groq API key is configured
+    if (!process.env.GROQ_API_KEY) {
+      console.error('GROQ_API_KEY is not configured in environment variables');
+      return res.status(500).json({ 
+        error: 'AI service not configured', 
+        message: 'Groq API key is missing' 
+      });
+    }
+
     // Get current stock data
     const stockData = await getStockContext();
     
@@ -92,7 +101,7 @@ A: "🔴 Low Stock Medicines (≤20 units):
    
    Recommendation: Place immediate orders for top 2 medicines."`;
 
-    // Call Groq AI
+    // Call Groq AI with mixtral-8x7b (GPT-like OSS model)
     const completion = await groq.chat.completions.create({
       messages: [
         {
@@ -104,7 +113,7 @@ A: "🔴 Low Stock Medicines (≤20 units):
           content: message
         }
       ],
-      model: 'llama-3.3-70b-versatile',
+      model: 'mixtral-8x7b-32768', // GPT-compatible open-source model
       temperature: 0.3, // Lower temperature for more consistent, factual responses
       max_tokens: 1024,
       top_p: 0.9
@@ -119,9 +128,15 @@ A: "🔴 Low Stock Medicines (≤20 units):
 
   } catch (error) {
     console.error('Chatbot error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response?.data
+    });
     res.status(500).json({ 
       error: 'Failed to process chatbot query', 
-      message: error.message 
+      message: error.message,
+      details: error.response?.data?.error || 'Unknown error'
     });
   }
 };
