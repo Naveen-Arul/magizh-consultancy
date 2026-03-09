@@ -111,7 +111,7 @@ A: "🔴 Low Stock Medicines (≤20 units):
    
    Recommendation: Place immediate orders for top 2 medicines."`;
 
-    // Call Groq AI with mixtral-8x7b (GPT-like OSS model)
+    // Call Groq AI with Llama 3.1 8B Instant (Fast GPT-like OSS model)
     const groqClient = getGroqClient();
     const completion = await groqClient.chat.completions.create({
       messages: [
@@ -124,7 +124,7 @@ A: "🔴 Low Stock Medicines (≤20 units):
           content: message
         }
       ],
-      model: 'mixtral-8x7b-32768', // GPT-compatible open-source model
+      model: 'llama-3.1-8b-instant', // Fast GPT-compatible open-source model
       temperature: 0.3, // Lower temperature for more consistent, factual responses
       max_tokens: 1024,
       top_p: 0.9
