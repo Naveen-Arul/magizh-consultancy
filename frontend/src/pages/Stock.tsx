@@ -14,24 +14,47 @@ const LOW_THRESHOLD = 20;
 
 function getStatus(qty: number, expiry: string) {
   const daysUntilExpiry = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
-  if (daysUntilExpiry <= 90 && qty <= LOW_THRESHOLD) return "critical";
-  if (daysUntilExpiry <= 90) return "near-expiry";
+  
+  // Expired (<=0 days)
+  if (daysUntilExpiry <= 0) return "expired";
+  
+  // Critical (1-30 days)
+  if (daysUntilExpiry <= 30) {
+    if (qty <= LOW_THRESHOLD) return "critical-low";
+    return "critical";
+  }
+  
+  // Warning (31-90 days)
+  if (daysUntilExpiry <= 90) {
+    if (qty <= LOW_THRESHOLD) return "warning-low";
+    return "warning";
+  }
+  
+  // Low stock but not expiring soon
   if (qty <= LOW_THRESHOLD) return "low-stock";
+  
+  // Good
   return "ok";
 }
 
 const statusStyles: Record<string, string> = {
   ok: "bg-success-green/10 text-success-green",
   "low-stock": "bg-warning-amber/10 text-warning-amber",
-  "near-expiry": "bg-warning-red/10 text-warning-red",
-  critical: "bg-warning-red/15 text-warning-red",
+  warning: "bg-orange-500/10 text-orange-600",
+  "warning-low": "bg-orange-500/15 text-orange-700 font-semibold",
+  critical: "bg-red-500/15 text-red-600 font-semibold",
+  "critical-low": "bg-red-500/20 text-red-700 font-bold",
+  expired: "bg-red-600/25 text-red-800 font-bold border-2 border-red-600/50 blink-red",
 };
 
 const statusLabels: Record<string, string> = {
   ok: "In Stock",
   "low-stock": "Low Stock",
-  "near-expiry": "Near Expiry",
-  critical: "Critical",
+  warning: "⚠️ Expiring Soon",
+  "warning-low": "⚠️ Low + Expiring",
+  critical: "🔴 Critical Expiry",
+  "critical-low": "🔴 Critical",
+  expired: "🚨 EXPIRED",
 };
 
 const Stock = () => {
@@ -58,8 +81,12 @@ const Stock = () => {
     }
   };
 
+  const expired = stock.filter((s) => Math.ceil((new Date(s.expiry).getTime() - Date.now()) / 86400000) <= 0);
   const lowStock = stock.filter((s) => s.quantity <= LOW_THRESHOLD);
-  const nearExpiry = stock.filter((s) => Math.ceil((new Date(s.expiry).getTime() - Date.now()) / 86400000) <= 90);
+  const nearExpiry = stock.filter((s) => {
+    const days = Math.ceil((new Date(s.expiry).getTime() - Date.now()) / 86400000);
+    return days > 0 && days <= 90;
+  });
 
   const addStock = async () => {
     if (!form.name || !form.quantity || !form.expiry) return;
@@ -143,6 +170,30 @@ const Stock = () => {
         <h1 className="font-heading text-2xl font-bold text-foreground">Stock Management</h1>
       </div>
 
+      {/* Expired Alert - Always at top if any exist */}
+      {expired.length > 0 && (
+        <div className="mb-6 rounded-xl border-2 border-red-600 bg-red-50 p-5 shadow-lg pulse-border">
+          <div className="mb-3 flex items-center gap-2 text-red-700">
+            <AlertTriangle className="h-6 w-6 animate-pulse" />
+            <h3 className="font-heading text-lg font-bold">🚨 EXPIRED MEDICINES ({expired.length})</h3>
+          </div>
+          <div className="rounded-lg bg-white/70 p-3">
+            <p className="mb-2 text-sm font-semibold text-red-800">⚠️ URGENT: Remove these medicines from stock immediately!</p>
+            <ul className="space-y-1.5">
+              {expired.map((s) => {
+                const daysExpired = Math.abs(Math.ceil((new Date(s.expiry).getTime() - Date.now()) / 86400000));
+                return (
+                  <li key={s._id} className="flex items-center justify-between rounded bg-red-100/80 px-3 py-2 text-sm">
+                    <span className="font-semibold text-red-900">{s.name} ({s.batch})</span>
+                    <span className="font-bold text-red-600">Expired {daysExpired} {daysExpired === 1 ? 'day' : 'days'} ago - {s.expiry}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {/* Summary Panels */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-warning-amber/30 bg-card p-5 shadow-card">
@@ -199,8 +250,10 @@ const Stock = () => {
               {stock.map((item) => {
                 const status = getStatus(item.quantity, item.expiry);
                 const isEditing = editingId === item._id;
+                const daysUntilExpiry = Math.ceil((new Date(item.expiry).getTime() - Date.now()) / 86400000);
+                const isExpired = daysUntilExpiry <= 0;
                 return (
-                  <tr key={item._id} className="border-b last:border-0">
+                  <tr key={item._id} className={`border-b last:border-0 ${isExpired ? 'blink-red' : ''}`}>
                     <td className="px-4 py-3 font-medium text-foreground">
                       {isEditing ? (
                         <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full rounded border bg-background px-2 py-1 text-sm" />

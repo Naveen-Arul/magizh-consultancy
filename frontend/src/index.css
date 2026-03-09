@@ -72,3 +72,32 @@
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
 }
+
+/* Blinking animation for expired items */
+@keyframes blink-red {
+  0%, 100% {
+    background-color: hsl(0 72% 55% / 0.2);
+    border-color: hsl(0 72% 55% / 0.5);
+  }
+  50% {
+    background-color: hsl(0 72% 55% / 0.35);
+    border-color: hsl(0 72% 55% / 0.8);
+  }
+}
+
+.blink-red {
+  animation: blink-red 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% {
+    box-shadow: 0 0 0 0 hsl(0 72% 55% / 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 6px hsl(0 72% 55% / 0);
+  }
+}
+
+.pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
+}
