@@ -44,12 +44,26 @@ const getStockContext = async () => {
         nearestExpiry: nearestExpiry ? nearestExpiry.toISOString().split('T')[0] : 'N/A',
         daysUntilExpiry: daysUntilExpiry,
         isNearExpiry: daysUntilExpiry !== null && daysUntilExpiry <= 90,
-        batches: med.batches.map(b => ({
-          batch: b.batchNumber,
-          quantity: b.quantity,
-          expiry: b.expiryDate.toISOString().split('T')[0]
-        }))
+        batches: med.batches.map(b => {
+          const batchDaysUntilExpiry = Math.ceil((new Date(b.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+          return {
+            batch: b.batchNumber,
+            quantity: b.quantity,
+            expiry: b.expiryDate.toISOString().split('T')[0],
+            daysUntilExpiry: batchDaysUntilExpiry,
+            urgency: batchDaysUntilExpiry <= 0 ? 'EXPIRED' : 
+                     batchDaysUntilExpiry <= 30 ? 'CRITICAL' : 
+                     batchDaysUntilExpiry <= 90 ? 'WARNING' : 'GOOD'
+          };
+        }).sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry) // Sort batches by expiry (earliest first)
       };
+    });
+    
+    // Sort medicines by nearest expiry date (most urgent first)
+    stockData.sort((a, b) => {
+      if (a.daysUntilExpiry === null) return 1;
+      if (b.daysUntilExpiry === null) return -1;
+      return a.daysUntilExpiry - b.daysUntilExpiry;
     });
     
     return stockData;
@@ -89,61 +103,73 @@ ${JSON.stringify(stockData, null, 2)}
 
 Guidelines:
 - Be concise and direct - staff are busy
-- Use **Markdown tables** for presenting medicine lists and stock data
+- **ALWAYS use Markdown tables** for presenting medicine lists and stock data
+- **ALWAYS sort medicines by expiry date** (earliest/most urgent first)
+- **Segregate medicines by expiry urgency** when showing lists:
+  - 🔴 **EXPIRED** or **CRITICAL** (0-30 days)
+  - ⚠️ **WARNING** (31-90 days)
+  - ✅ **GOOD** (>90 days)
 - Use proper **Markdown formatting** for all responses
-- Format lists using markdown syntax: use "- " for bullet points
 - Use **bold** for emphasis on medicine names and important info
 - Use colored emojis for visual status indicators:
   - ✅ for available/good stock
   - ⚠️ for warnings (low stock or near expiry)
-  - 🔴 for critical (both low stock AND near expiry)
+  - 🔴 for critical/expired
   - 📦 for stock information
   - ⏰ for expiry information
   - 💊 for medicine names
-- For medicine lists, ALWAYS use markdown tables with columns: Medicine | Quantity | Batch | Expiry | Status
+  - 🚨 for urgent action needed
+- For medicine lists, use tables with columns: **Medicine | Quantity | Batch | Expiry Date | Days Left | Status**
+- Include "Days Left" column showing countdown to expiry
 - Flag low stock (<= 20 units) and near expiry (<= 90 days) items clearly
 - If a medicine is not in stock, say so clearly
 - Include practical recommendations with emoji bullets
 - Keep responses organized with headers (###)
 
-Example responses (using markdown tables):
-
-Q: "Is Paracetamol available?"
-A: "✅ **Paracetamol** is available. Total: **250 units** across 2 batches
-
-| Batch | Quantity | Expiry | Status |
-|-------|----------|--------|--------|
-| PAR001 | 50 units | 2026-04-15 | ⚠️ Near expiry |
-| PAR002 | 200 units | 2026-12-01 | ✅ Good stock |
-
-💰 **Price**: ₹12 per unit"
-
-Q: "Which medicines are low on stock?"
-A: "🔴 **Low Stock Alert** (≤20 units)
-
-| Medicine | Quantity | Batch | Expiry | Action |
-|----------|----------|-------|--------|--------|
-| **Amoxicillin** | 8 units | AMX001 | 2026-08-20 | 🚨 Urgent reorder |
-| **Cetirizine** | 3 units | CET001 | 2026-03-05 | 🔴 Critical! |
-| **Omeprazole** | 15 units | OME001 | 2026-05-01 | ⚠️ Reorder soon |
-
-### 📋 Recommendations
-- 🚨 Place immediate orders for **Amoxicillin** and **Cetirizine**
-- 📊 Review stock levels weekly"
+Example responses (using markdown tables with expiry sorting):
 
 Q: "Show all medicines"
-A: "📦 **Current Stock Overview** (${new Date().toISOString().split('T')[0]})
+A: "📦 **Medicine Stock Overview** - Sorted by Expiry Date
 
-| Medicine | Qty | Batch | Expiry | Status |
-|----------|-----|-------|--------|--------|
-| Paracetamol | 250 | PAR001/002 | Various | ✅ Good |
-| Amoxicillin | 8 | AMX001 | 2026-08-20 | 🔴 Low |
-| Cetirizine | 3 | CET001 | 2026-03-05 | 🔴 Critical |
+### 🔴 Critical - Expiring Soon (0-30 days)
+
+| Medicine | Quantity | Batch | Expiry Date | Days Left | Status |
+|----------|----------|-------|-------------|-----------|--------|
+| **Cetirizine** | 3 units | CET001 | 2026-03-10 | 1 day | 🔴 URGENT |
+| **Ibuprofen** | 12 units | IBU001 | 2026-03-25 | 16 days | 🔴 Critical |
+
+### ⚠️ Warning - Expiring in 31-90 days
+
+| Medicine | Quantity | Batch | Expiry Date | Days Left | Status |
+|----------|----------|-------|-------------|-----------|--------|
+| **Paracetamol** | 50 units | PAR001 | 2026-04-15 | 37 days | ⚠️ Monitor |
+| **Omeprazole** | 15 units | OME001 | 2026-05-01 | 53 days | ⚠️ Low Stock |
+
+### ✅ Good Stock (>90 days)
+
+| Medicine | Quantity | Batch | Expiry Date | Days Left | Status |
+|----------|----------|-------|-------------|-----------|--------|
+| **Amoxicillin** | 150 units | AMX002 | 2026-08-20 | 164 days | ✅ Good |
+| **Paracetamol** | 200 units | PAR002 | 2026-12-01 | 267 days | ✅ Good |
 
 ### 📊 Summary
-- ✅ **Good Stock**: 15 medicines
-- ⚠️ **Low Stock**: 3 medicines
-- ⏰ **Near Expiry**: 2 medicines"`;
+- 🚨 **Urgent Action**: 2 medicines expiring within 30 days
+- ⚠️ **Monitor**: 2 medicines expiring in 31-90 days
+- ✅ **Good**: 8 medicines with >90 days validity"
+
+Q: "Which medicines are expiring soon?"
+A: "⏰ **Expiry Alert** - Sorted by Most Urgent First
+
+| Medicine | Quantity | Batch | Expiry Date | Days Left | Priority |
+|----------|----------|-------|-------------|-----------|----------|
+| **Cetirizine** | 3 units | CET001 | 2026-03-10 | 1 day | 🔴 URGENT |
+| **Ibuprofen** | 12 units | IBU001 | 2026-03-25 | 16 days | 🔴 Critical |
+| **Paracetamol** | 50 units | PAR001 | 2026-04-15 | 37 days | ⚠️ Warning |
+
+### 🚨 Action Required
+- Return **Cetirizine** to supplier immediately
+- Offer discount on **Ibuprofen** to clear stock
+- Monitor **Paracetamol** batch PAR001"`;
 
     // Call Groq AI with Llama 3.1 8B Instant (Fast GPT-like OSS model)
     const groqClient = getGroqClient();
