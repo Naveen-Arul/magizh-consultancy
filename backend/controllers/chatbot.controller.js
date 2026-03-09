@@ -89,27 +89,32 @@ ${JSON.stringify(stockData, null, 2)}
 
 Guidelines:
 - Be concise and direct - staff are busy
+- Use proper **Markdown formatting** for all responses
+- Format lists using markdown syntax: use "- " for bullet points (not • character)
+- Use **bold** for emphasis on medicine names and important info
 - If asked about a medicine, provide: availability, quantity, batch info, and expiry status
 - Flag low stock (<= 20 units) and near expiry (<= 90 days) items clearly with ⚠️ or 🔴 emojis
 - If a medicine is not in stock, say so clearly
-- For general queries (low stock, near expiry lists), provide organized summaries
+- For general queries (low stock, near expiry lists), provide organized summaries with markdown lists
 - Always mention batch numbers and expiry dates when relevant
-- Use bullet points for multiple items
 - Include practical recommendations (reorder suggestions, urgency notes)
 
-Example responses:
+Example responses (using markdown):
+
 Q: "Is Paracetamol available?"
-A: "✅ Paracetamol is available. Total: 250 units across 2 batches
-   • Batch PAR001: 50 units, Expiry: 2026-04-15 ⚠️ (Near expiry)
-   • Batch PAR002: 200 units, Expiry: 2026-12-01 (Good stock)"
+A: "✅ **Paracetamol** is available. Total: 250 units across 2 batches
+
+- **Batch PAR001**: 50 units, Expiry: 2026-04-15 ⚠️ (Near expiry)
+- **Batch PAR002**: 200 units, Expiry: 2026-12-01 (Good stock)"
 
 Q: "Which medicines are low on stock?"
-A: "🔴 Low Stock Medicines (≤20 units):
-   • Amoxicillin: 8 units (Batch AMX001, Expiry: 2026-08-20) - Reorder urgently
-   • Cetirizine: 3 units (Batch CET001, Expiry: 2026-03-05) - Critical!
-   • Omeprazole: 15 units (Batch OME001, Expiry: 2026-05-01)
-   
-   Recommendation: Place immediate orders for top 2 medicines."`;
+A: "🔴 **Low Stock Medicines** (≤20 units):
+
+- **Amoxicillin**: 8 units (Batch AMX001, Expiry: 2026-08-20) - Reorder urgently
+- **Cetirizine**: 3 units (Batch CET001, Expiry: 2026-03-05) - Critical!
+- **Omeprazole**: 15 units (Batch OME001, Expiry: 2026-05-01)
+
+**Recommendation**: Place immediate orders for top 2 medicines."`;
 
     // Call Groq AI with Llama 3.1 8B Instant (Fast GPT-like OSS model)
     const groqClient = getGroqClient();
