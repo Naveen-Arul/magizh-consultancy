@@ -1,5 +1,27 @@
 # 💊 MagizhHealDesk - Pharmacy Management System
+Option 2: Add Billing History Page 📋 High Value
+Currently you can create bills but can't view them. I can add:
 
+Bills list with search/filter functionality
+View bill details
+Bill status management
+Date range filtering
+Export/Print functionality
+Option 3: Create Dashboard Page 📊 Visual Impact
+Add an analytics dashboard with:
+
+Total sales & revenue charts
+Low stock alerts summary
+Near expiry medicines overview
+Top-selling medicines
+Recent billing activity
+Option 4: Add Print/PDF Bills 🖨️ Business Critical
+Enable printing and PDF export for bills:
+
+Professional bill format
+Print functionality
+Download as PDF
+Include pharmacy branding
 <div align="center">
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
