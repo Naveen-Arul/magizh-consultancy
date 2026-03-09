@@ -48,7 +48,7 @@ export const getBillByNumber = async (req, res) => {
 // Create new bill
 export const createBill = async (req, res) => {
   try {
-    const { items, total, date, patientName, patientPhone } = req.body;
+    const { items, total, date, patientName, patientPhone, paymentType, discount } = req.body;
     
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'No items provided' });
@@ -102,15 +102,18 @@ export const createBill = async (req, res) => {
     }
     
     // Create bill
+    const discountAmount = discount ? (subtotal * discount) / 100 : 0;
+    const grandTotal = total || (subtotal - discountAmount);
+    
     const bill = new Billing({
       patientName: patientName || 'Walk-in Customer',
       patientPhone: patientPhone || '',
       items: billItems,
       subtotal,
-      discount: 0,
+      discount: discount || 0,
       tax: 0,
-      grandTotal: subtotal,
-      paymentMethod: 'Cash',
+      grandTotal,
+      paymentMethod: paymentType || 'Cash',
       status: 'Completed'
     });
     

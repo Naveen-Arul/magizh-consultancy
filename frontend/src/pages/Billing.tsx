@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
-import { Receipt, Plus, Trash2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Receipt, Plus, Trash2, Printer } from "lucide-react";
+import { useReactToPrint } from "react-to-print";
+import { PrintableBill } from "../components/PrintableBill";
 
 interface Medicine {
   _id: string;
@@ -19,6 +21,15 @@ interface BillItem {
   batch: string;
 }
 
+interface CompletedBill {
+  billNumber: string;
+  date: string;
+  items: BillItem[];
+  total: number;
+  paymentType: string;
+  discount: number;
+}
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const Billing = () => {
@@ -28,6 +39,10 @@ const Billing = () => {
   const [items, setItems] = useState<BillItem[]>([]);
   const [nextId, setNextId] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [paymentType, setPaymentType] = useState("Cash");
+  const [discount, setDiscount] = useState(0);
+  const [lastBill, setLastBill] = useState<CompletedBill | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchMedicines();
@@ -74,12 +89,20 @@ const Billing = () => {
 
   const removeItem = (id: number) => setItems((prev) => prev.filter((i) => i.id !== id));
 
-  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const discountAmount = (subtotal * discount) / 100;
+  const total = subtotal - discountAmount;
+
+  const handlePrint = useReactToPrint({
+    content: () => printRef.current,
+    documentTitle: lastBill ? `Bill_${lastBill.billNumber}` : "Bill",
+  });
 
   const completeBilling = async () => {
     if (items.length === 0) return;
 
     try {
+      const billDate = new Date().toISOString();
       const response = await fetch(`${API_URL}/billing`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,14 +115,38 @@ const Billing = () => {
             batch: item.batch,
           })),
           total,
-          date: new Date().toISOString(),
+          paymentType,
+          discount,
+          date: billDate,
         }),
       });
 
       if (response.ok) {
-        alert("Bill completed successfully!");
+        const data = await response.json();
+        const billNumber = data.billNumber || `BILL${Date.now()}`;
+        
+        // Store bill data for printing
+        setLastBill({
+          billNumber,
+          date: billDate,
+          items: items.map(item => ({
+            medicine: item.medicine,
+            batch: item.batch,
+            quantity: item.quantity,
+            price: item.price,
+            id: item.id,
+            medicineId: item.medicineId,
+          })),
+          total,
+          paymentType,
+          discount,
+        });
+
+        alert("Bill completed successfully! You can now print it.");
         setItems([]);
         setNextId(1);
+        setDiscount(0);
+        setPaymentType("Cash");
         await fetchMedicines(); // Refresh stock quantities
       } else {
         const error = await response.json();
@@ -130,7 +177,7 @@ const Billing = () => {
 
       {/* Form */}
       <div className="mb-8 grid gap-4 rounded-xl border bg-card p-6 shadow-card sm:grid-cols-4">
-        <div className="sm:col-span-1">
+        <div className="sm:col-span-2">
           <label className="mb-1 block text-xs font-medium text-muted-foreground">Medicine</label>
           <select
             value={medicineId}
@@ -174,13 +221,49 @@ const Billing = () => {
         </div>
       </div>
 
+      {/* Payment Details */}
+      {items.length > 0 && (
+        <div className="mb-4 grid gap-4 rounded-xl border bg-card p-6 shadow-card sm:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Payment Type</label>
+            <select
+              value={paymentType}
+              onChange={(e) => setPaymentType(e.target.value)}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="UPI">UPI</option>
+              <option value="Online">Online Banking</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">Discount (%)</label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={discount}
+              onChange={(e) => setDiscount(Math.min(100, Math.max(0, Number(e.target.value))))}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div className="flex items-end">
+            <div className="w-full rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+              <div className="text-xs text-muted-foreground">Total Amount</div>
+              <div className="text-lg font-bold text-primary">₹{total.toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bill Table */}
       <div className="rounded-xl border bg-card shadow-card">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-accent/50 text-left">
-                <th className="px-4 py-3 font-medium text-muted-foreground">#</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground">S.No</th>
                 <th className="px-4 py-3 font-medium text-muted-foreground">Medicine</th>
                 <th className="px-4 py-3 font-medium text-muted-foreground">Batch</th>
                 <th className="px-4 py-3 font-medium text-muted-foreground">Qty</th>
@@ -215,12 +298,28 @@ const Billing = () => {
               )}
             </tbody>
             {items.length > 0 && (
-              <tfoot>
-                <tr className="bg-accent/30">
+              <tfoot className="border-t-2 border-border">
+                <tr>
+                  <td colSpan={5} className="px-4 py-2 text-right text-sm text-muted-foreground">
+                    Subtotal
+                  </td>
+                  <td className="px-4 py-2 font-medium text-foreground">₹{subtotal.toFixed(2)}</td>
+                  <td />
+                </tr>
+                {discount > 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-2 text-right text-sm text-muted-foreground">
+                      Discount ({discount}%)
+                    </td>
+                    <td className="px-4 py-2 font-medium text-destructive">-₹{discountAmount.toFixed(2)}</td>
+                    <td />
+                  </tr>
+                )}
+                <tr className="bg-primary/10">
                   <td colSpan={5} className="px-4 py-3 text-right font-heading font-semibold text-foreground">
                     Grand Total
                   </td>
-                  <td className="px-4 py-3 font-heading font-bold text-primary">₹{total}</td>
+                  <td className="px-4 py-3 font-heading font-bold text-primary text-lg">₹{total.toFixed(2)}</td>
                   <td />
                 </tr>
               </tfoot>
@@ -230,13 +329,36 @@ const Billing = () => {
       </div>
 
       {items.length > 0 && (
-        <div className="mt-4 flex justify-end">
+        <div className="flex flex-wrap justify-end gap-3">
+          {lastBill && (
+            <button
+              onClick={handlePrint}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-primary bg-white px-6 py-2 text-sm font-medium text-primary transition-all hover:bg-primary hover:text-white"
+            >
+              <Printer className="h-4 w-4" /> Print Last Bill
+            </button>
+          )}
           <button
             onClick={completeBilling}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-shadow hover:shadow-card-hover"
           >
-            Complete Billing
+            <Receipt className="h-4 w-4" /> Complete Billing
           </button>
+        </div>
+      )}
+
+      {/* Hidden Printable Bill Component */}
+      {lastBill && (
+        <div style={{ display: "none" }}>
+          <PrintableBill
+            ref={printRef}
+            billNumber={lastBill.billNumber}
+            date={lastBill.date}
+            items={lastBill.items}
+            total={lastBill.total}
+            paymentType={lastBill.paymentType}
+            discount={lastBill.discount}
+          />
         </div>
       )}
 
