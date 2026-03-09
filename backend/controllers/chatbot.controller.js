@@ -1,9 +1,19 @@
 import Groq from 'groq-sdk';
 import Medicine from '../models/Medicine.model.js';
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY
-});
+// Lazy initialization of Groq client to ensure env vars are loaded
+let groq = null;
+const getGroqClient = () => {
+  if (!groq) {
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error('GROQ_API_KEY environment variable is not set');
+    }
+    groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY
+    });
+  }
+  return groq;
+};
 
 // Helper to get stock context for AI
 const getStockContext = async () => {
@@ -102,7 +112,8 @@ A: "🔴 Low Stock Medicines (≤20 units):
    Recommendation: Place immediate orders for top 2 medicines."`;
 
     // Call Groq AI with mixtral-8x7b (GPT-like OSS model)
-    const completion = await groq.chat.completions.create({
+    const groqClient = getGroqClient();
+    const completion = await groqClient.chat.completions.create({
       messages: [
         {
           role: 'system',
