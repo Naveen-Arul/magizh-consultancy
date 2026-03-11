@@ -96,6 +96,13 @@ const Billing = () => {
   const handlePrint = useReactToPrint({
     content: () => printRef.current,
     documentTitle: lastBill ? `Bill_${lastBill.billNumber}` : "Bill",
+    onAfterPrint: () => {
+      // Clear form after printing
+      setItems([]);
+      setNextId(1);
+      setDiscount(0);
+      setPaymentType("Cash");
+    },
   });
 
   const completeBilling = async () => {
@@ -125,8 +132,8 @@ const Billing = () => {
         const data = await response.json();
         const billNumber = data.billNumber || `BILL${Date.now()}`;
         
-        // Store bill data for printing
-        setLastBill({
+        // Store bill data for printing (using current items before clearing)
+        const billData = {
           billNumber,
           date: billDate,
           items: items.map(item => ({
@@ -140,14 +147,15 @@ const Billing = () => {
           total,
           paymentType,
           discount,
-        });
-
-        alert("Bill completed successfully! You can now print it.");
-        setItems([]);
-        setNextId(1);
-        setDiscount(0);
-        setPaymentType("Cash");
+        };
+        
+        setLastBill(billData);
         await fetchMedicines(); // Refresh stock quantities
+        
+        // Trigger print after state update (form will be cleared after printing)
+        setTimeout(() => {
+          handlePrint();
+        }, 100);
       } else {
         const error = await response.json();
         alert(`Error: ${error.message}`);
@@ -330,19 +338,11 @@ const Billing = () => {
 
       {items.length > 0 && (
         <div className="flex flex-wrap justify-end gap-3">
-          {lastBill && (
-            <button
-              onClick={handlePrint}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-primary bg-white px-6 py-2 text-sm font-medium text-primary transition-all hover:bg-primary hover:text-white"
-            >
-              <Printer className="h-4 w-4" /> Print Last Bill
-            </button>
-          )}
           <button
             onClick={completeBilling}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-shadow hover:shadow-card-hover"
           >
-            <Receipt className="h-4 w-4" /> Complete Billing
+            <Receipt className="h-4 w-4" /> Complete Billing & Print
           </button>
         </div>
       )}
