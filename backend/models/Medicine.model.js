@@ -62,7 +62,8 @@ const medicineSchema = new mongoose.Schema({
 
 // Virtual field for total quantity across all batches
 medicineSchema.virtual('totalQuantity').get(function() {
-  return this.batches.reduce((sum, batch) => sum + batch.quantity, 0);
+  const batches = this.batches || [];
+  return batches.reduce((sum, batch) => sum + batch.quantity, 0);
 });
 
 // Virtual field to check if stock is low
@@ -72,19 +73,21 @@ medicineSchema.virtual('isLowStock').get(function() {
 
 // Virtual field to get nearest expiry date
 medicineSchema.virtual('nearestExpiry').get(function() {
-  if (this.batches.length === 0) return null;
-  return this.batches.reduce((nearest, batch) => 
+  const batches = this.batches || [];
+  if (batches.length === 0) return null;
+  return batches.reduce((nearest, batch) => 
     batch.expiryDate < nearest ? batch.expiryDate : nearest, 
-    this.batches[0].expiryDate
+    batches[0].expiryDate
   );
 });
 
 // Method to check if any batch is near expiry (within 60 days)
 medicineSchema.virtual('isNearExpiry').get(function() {
-  if (this.batches.length === 0) return false;
+  const batches = this.batches || [];
+  if (batches.length === 0) return false;
   const sixtyDaysFromNow = new Date();
   sixtyDaysFromNow.setDate(sixtyDaysFromNow.getDate() + 60);
-  return this.batches.some(batch => batch.expiryDate <= sixtyDaysFromNow);
+  return batches.some(batch => batch.expiryDate <= sixtyDaysFromNow);
 });
 
 // Ensure virtuals are included in JSON

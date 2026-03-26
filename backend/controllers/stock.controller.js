@@ -252,10 +252,32 @@ export const updateBatchQuantity = async (req, res) => {
 // Delete medicine
 export const deleteMedicine = async (req, res) => {
   try {
-    const medicine = await Medicine.findByIdAndDelete(req.params.id);
+    const { id } = req.params;
+
+    const medicineWithBatch = await Medicine.findOne({ 'batches._id': id });
+    if (medicineWithBatch) {
+      const batch = medicineWithBatch.batches.id(id);
+
+      if (!batch) {
+        return res.status(404).json({ error: 'Batch not found' });
+      }
+
+      batch.deleteOne();
+
+      if (medicineWithBatch.batches.length === 0) {
+        await Medicine.findByIdAndDelete(medicineWithBatch._id);
+      } else {
+        await medicineWithBatch.save();
+      }
+
+      return res.json({ message: 'Batch deleted successfully' });
+    }
+
+    const medicine = await Medicine.findByIdAndDelete(id);
     if (!medicine) {
       return res.status(404).json({ error: 'Medicine not found' });
     }
+
     res.json({ message: 'Medicine deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete medicine', message: error.message });

@@ -1,5 +1,23 @@
 import { useState, useEffect } from "react";
-import { Package, AlertTriangle, Clock, Plus, Pencil, Trash2, X, Check } from "lucide-react";
+import { Package, AlertTriangle, Clock, Plus, Pencil, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface StockItem {
   _id: string;
@@ -61,8 +79,9 @@ const Stock = () => {
   const [stock, setStock] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ name: "", quantity: "", expiry: "", batch: "" });
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<StockItem | null>(null);
   const [editForm, setEditForm] = useState({ name: "", quantity: "", expiry: "", batch: "" });
+  const [deleteTarget, setDeleteTarget] = useState<StockItem | null>(null);
 
   // Fetch stock from API
   useEffect(() => {
@@ -113,13 +132,15 @@ const Stock = () => {
   };
 
   const startEdit = (item: StockItem) => {
-    setEditingId(item._id);
+    setEditTarget(item);
     setEditForm({ name: item.name, quantity: String(item.quantity), expiry: item.expiry, batch: item.batch });
   };
 
-  const saveEdit = async (id: string) => {
+  const saveEdit = async () => {
+    if (!editTarget) return;
+
     try {
-      const response = await fetch(`${API_URL}/stock/${id}`, {
+      const response = await fetch(`${API_URL}/stock/${editTarget._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -132,16 +153,16 @@ const Stock = () => {
       
       if (response.ok) {
         await fetchStock();
-        setEditingId(null);
+        setEditTarget(null);
       }
     } catch (error) {
       console.error("Error updating stock:", error);
     }
   };
 
-  const deleteItem = async (id: string) => {
+  const deleteItem = async (item: StockItem) => {
     try {
-      const response = await fetch(`${API_URL}/stock/${id}`, {
+      const response = await fetch(`${API_URL}/stock/${item._id}`, {
         method: "DELETE",
       });
       
@@ -150,6 +171,8 @@ const Stock = () => {
       }
     } catch (error) {
       console.error("Error deleting stock:", error);
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -249,48 +272,24 @@ const Stock = () => {
             <tbody>
               {stock.map((item) => {
                 const status = getStatus(item.quantity, item.expiry);
-                const isEditing = editingId === item._id;
                 const daysUntilExpiry = Math.ceil((new Date(item.expiry).getTime() - Date.now()) / 86400000);
                 const isExpired = daysUntilExpiry <= 0;
                 return (
                   <tr key={item._id} className={`border-b last:border-0 ${isExpired ? 'blink-red' : ''}`}>
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      {isEditing ? (
-                        <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full rounded border bg-background px-2 py-1 text-sm" />
-                      ) : item.name}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {isEditing ? (
-                        <input value={editForm.batch} onChange={(e) => setEditForm({ ...editForm, batch: e.target.value })} className="w-20 rounded border bg-background px-2 py-1 text-sm" />
-                      ) : item.batch}
-                    </td>
-                    <td className="px-4 py-3">
-                      {isEditing ? (
-                        <input type="number" value={editForm.quantity} onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })} className="w-20 rounded border bg-background px-2 py-1 text-sm" />
-                      ) : item.quantity}
-                    </td>
-                    <td className="px-4 py-3">
-                      {isEditing ? (
-                        <input type="date" value={editForm.expiry} onChange={(e) => setEditForm({ ...editForm, expiry: e.target.value })} className="rounded border bg-background px-2 py-1 text-sm" />
-                      ) : item.expiry}
-                    </td>
+                    <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{item.batch}</td>
+                    <td className="px-4 py-3">{item.quantity}</td>
+                    <td className="px-4 py-3">{item.expiry}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusStyles[status]}`}>
                         {statusLabels[status]}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {isEditing ? (
-                        <div className="flex gap-1">
-                          <button onClick={() => saveEdit(item._id)} className="rounded p-1 text-success-green hover:bg-accent"><Check className="h-4 w-4" /></button>
-                          <button onClick={() => setEditingId(null)} className="rounded p-1 text-muted-foreground hover:bg-accent"><X className="h-4 w-4" /></button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-1">
-                          <button onClick={() => startEdit(item)} className="rounded p-1 text-primary hover:bg-accent"><Pencil className="h-4 w-4" /></button>
-                          <button onClick={() => deleteItem(item._id)} className="rounded p-1 text-destructive hover:bg-accent"><Trash2 className="h-4 w-4" /></button>
-                        </div>
-                      )}
+                      <div className="flex gap-1">
+                        <button onClick={() => startEdit(item)} className="rounded p-1 text-primary hover:bg-accent"><Pencil className="h-4 w-4" /></button>
+                        <button onClick={() => setDeleteTarget(item)} className="rounded p-1 text-destructive hover:bg-accent"><Trash2 className="h-4 w-4" /></button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -328,6 +327,59 @@ const Stock = () => {
         </div>
         <p className="mt-3 text-xs text-muted-foreground">Same medicine can be added multiple times with different expiry dates.</p>
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete stock item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget
+                ? `This will permanently delete ${deleteTarget.name} (Batch: ${deleteTarget.batch}) from inventory.`
+                : "This action cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget && deleteItem(deleteTarget)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit stock item</DialogTitle>
+            <DialogDescription>Update medicine details and save changes.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Medicine Name</label>
+              <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Batch</label>
+              <input value={editForm.batch} onChange={(e) => setEditForm({ ...editForm, batch: e.target.value })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Quantity</label>
+              <input type="number" value={editForm.quantity} onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Expiry Date</label>
+              <input type="date" value={editForm.expiry} onChange={(e) => setEditForm({ ...editForm, expiry: e.target.value })} className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setEditTarget(null)} className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent">Cancel</button>
+            <button onClick={saveEdit} className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:shadow-card-hover">Save Changes</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
